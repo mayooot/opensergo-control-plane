@@ -18,6 +18,7 @@ import (
 	"log"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/opensergo/opensergo-control-plane/pkg/controller"
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
@@ -25,6 +26,8 @@ import (
 	transport "github.com/opensergo/opensergo-control-plane/pkg/transport/grpc"
 	"github.com/pkg/errors"
 )
+
+const sendInterval = 100 * time.Millisecond
 
 type ControlPlane struct {
 	operator *controller.KubernetesOperator
@@ -94,7 +97,7 @@ func (c *ControlPlane) sendMessageToStream(stream model.OpenSergoTransportStream
 	if stream == nil {
 		return nil
 	}
-	return stream.SendMsg(&trpb.SubscribeResponse{
+	err := stream.SendMsg(&trpb.SubscribeResponse{
 		Status:          status,
 		Ack:             "",
 		Namespace:       namespace,
@@ -104,6 +107,11 @@ func (c *ControlPlane) sendMessageToStream(stream model.OpenSergoTransportStream
 		ControlPlane:    c.protoDesc,
 		ResponseId:      respId,
 	})
+	if err != nil {
+		return err
+	}
+	time.Sleep(sendInterval)
+	return nil
 }
 
 func (c *ControlPlane) handleSubscribeRequest(clientIdentifier model.ClientIdentifier, request *trpb.SubscribeRequest, stream model.OpenSergoTransportStream) error {
